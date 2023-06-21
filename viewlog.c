@@ -4,10 +4,38 @@
 
 struct termios term, orig;
 
+void update_dir(AppContext *ctx, const char *filename)
+{
+    int offset = strlen(filename);
+    memcpy(ctx->dir, filename, strlen(filename));
+    for (int i = offset; i >= 0; i--)
+    {
+        if (filename[i] == '/')
+        {
+            ctx->dir[i + 1] = '\0';
+            break;
+        }
+    }
+}
+
 void change_target(AppContext *ctx, const char *filename)
 {
     ERASE_SCREEN();
-    sprintf(ctx->target, "%s", filename);
+    if (filename[strlen(filename) - 1] == '/')
+    {
+        update_dir(ctx, filename);
+        return;
+    }
+
+    if (filename[0] == '/')
+    {
+        update_dir(ctx, filename);
+        sprintf(ctx->target, "%s", filename);
+    }
+    else
+    {
+        sprintf(ctx->target, "%s%s", ctx->dir, filename);
+    }
     size_t filesize = get_filesize(ctx->target);
     ctx->offset = filesize > 4000 ? filesize - 2000 : 0;
 }
@@ -64,7 +92,8 @@ void draw_footer(AppContext *ctx, const char *color)
     }
     else if (ctx->input_mode == INPUT_MODE_FILESEL)
     {
-        fprintf(stderr, "Open file : %s  (Press <`> to cmd mode)" COLOR_NONE, ctx->cmdbuf);
+        fprintf(stderr, "Open file : %s >>> %s          (Press <`> to cmd mode)" COLOR_NONE,
+                ctx->dir, ctx->cmdbuf);
     }
 }
 
@@ -137,12 +166,12 @@ void poll_log(AppContext *ctx)
 
 void update_screen(AppContext *ctx)
 {
-    if (poll_interval_check()){
-        poll_log(ctx);    
+    if (poll_interval_check())
+    {
+        poll_log(ctx);
         draw_header(ctx, BACK_COLOR_BLUE);
         draw_footer(ctx, BACK_COLOR_GRAY);
     }
-
 }
 
 void mainloop(AppContext *ctx)
@@ -166,8 +195,7 @@ AppContext *create_context()
     AppContext *ctx = (AppContext *)malloc(sizeof(AppContext));
     memset(ctx, 0x00, sizeof(AppContext));
 
-    sprintf(ctx->target, DEF_TARGET);
-
+    change_target(ctx, DEF_TARGET);
     get_screen_size(&ctx->win_row, &ctx->win_col);
     ctx->view_mode = VIEW_MODE_REALTIME;
     ctx->input_mode = INPUT_MODE_COMMAND;
