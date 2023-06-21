@@ -9,6 +9,7 @@
 
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <sys/select.h>
 
 #include "ansi_ec.h"
 
@@ -82,8 +83,43 @@ void draw_footer(AppContext *ctx, const char *color)
     fprintf(stderr, "Command : %s" COLOR_NONE, ctx->cmdbuf);
 }
 
+#define timespec_sub(after, before, result)                       \
+    do                                                            \
+    {                                                             \
+        (result)->tv_sec = (after)->tv_sec - (before)->tv_sec;    \
+        (result)->tv_nsec = (after)->tv_nsec - (before)->tv_nsec; \
+        if ((result)->tv_nsec < 0)                                \
+        {                                                         \
+            --(result)->tv_sec;                                   \
+            (result)->tv_nsec += 1000000000;                      \
+        }                                                         \
+    } while (0)
+
+int poll_interval_check()
+{
+    static struct timespec oldtime = {0, 0};
+    if (oldtime.tv_sec == 0)
+        clock_gettime(0, &oldtime);
+
+    struct timespec currtime;
+    clock_gettime(0, &currtime);
+
+    struct timespec diff;
+    timespec_sub(&currtime, &oldtime, &diff);
+
+    if (diff.tv_nsec > 50 * 1000 * 1000)
+    {
+        oldtime = currtime;
+        return 1;
+    }
+    return 0;
+}
+
 void update_screen(AppContext *ctx)
 {
+    if (!poll_interval_check())
+        return;
+
     size_t filesize = get_filesize(TARGET_FILE);
     if (filesize <= ctx->offset)
     {
@@ -100,7 +136,7 @@ void update_screen(AppContext *ctx)
     if (read > 0)
     {
         ERASE_LINE();
-        CURSOR_DOWN(100);
+        CURSOR_DOWN(MAX_ROW);
         CURSOR_UP(1);
         putc('\n', stderr);
         buf[read] = '\0';
@@ -110,11 +146,39 @@ void update_screen(AppContext *ctx)
     draw_footer(ctx, BACK_COLOR_GRAY);
 }
 
-void handle_input()
+void handle_input(AppContext *ctx)
 {
     int c = getchar();
-    if (isalnum(c)){
+    if (!iscntrl(c))
+    {
+        ctx->cmdbuf[ctx->cmdbuf_offset] = c;
+        ctx->cmdbuf_offset++;
+        ctx->cmdbuf[ctx->cmdbuf_offset] = '\0';
+    }
+    else
+    {
+        if (c == '\n')
+        {
+            ctx->cmdbuf[0] = '\0';
+            ctx->cmdbuf_offset = 0;
+        }
+    }
+    draw_footer(ctx, BACK_COLOR_GRAY);
+}
 
+void poll_input(AppContext *ctx)
+{
+    fd_set fds;
+    FD_ZERO(&fds);
+
+    FD_SET(STDIN_FILENO, &fds);
+    struct timeval tv = {0, 0};
+    tv.tv_sec = 0;
+    tv.tv_usec = 0;
+    select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv);
+    if (FD_ISSET(STDIN_FILENO, &fds))
+    {
+        handle_input(ctx);
     }
 }
 
@@ -124,12 +188,12 @@ void mainloop(AppContext *ctx)
     ctx->offset = filesize > 4000 ? filesize - 2000 : 0;
 
     ERASE_SCREEN();
+
     while (1)
     {
-        handle_input(ctx);
+        poll_input(ctx);
         if (ctx->realtime)
             update_screen(ctx);
-        usleep(100000);
     }
 }
 
@@ -145,8 +209,31 @@ AppContext *create_context()
     return ctx;
 }
 
+void stdin_mode_immediate(void)
+{
+    struct termios term;
+
+    if (tcgetattr(0, &term))
+    {
+        printf("tcgetattr failed\n");
+        exit(-1);
+    }
+
+    term.c_lflag &= ~ICANON;
+    term.c_lflag &= ~ECHO;
+    term.c_cc[VMIN] = 0;
+    term.c_cc[VTIME] = 0;
+
+    if (tcsetattr(0, TCSANOW, &term))
+    {
+        printf("tcsetattr failed\n");
+        exit(-1);
+    }
+}
+
 int main()
 {
+    stdin_mode_immediate();
     AppContext *ctx = create_context();
 
     mainloop(ctx);
