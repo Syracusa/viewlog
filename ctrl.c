@@ -1,82 +1,91 @@
 #include "viewlog.h"
 #include "ctrl.h"
 
-static void command_mode_handle_input(AppContext *ctx)
+static void viewmode_stop_handle_input(AppContext *ctx, int c)
 {
-
-}
-
-static void realtime_mode_handle_input()
-{
-
-}
-
-static void stop_mode_handle_input()
-{
-    
-}
-
-static void dump_file(AppContext *ctx)
-{
-    ctx->offset = 0;
-    size_t filesize = get_filesize(TARGET_FILE);
-    FILE *f = fopen(TARGET_FILE, "r");
-    char buf[2001];
-
-    while (ctx->offset < filesize)
+    if (c == 'r' || c == 'R')
     {
-        size_t read = fread(buf, 1, 2000, f);
-        buf[read] = '\0';
-        fprintf(stderr, "%s", buf);
-        ctx->offset += read;
+        /* View mode to VIEW_MODE_REALTIME */
+        ERASE_SCREEN();
+        size_t filesize = get_filesize(TARGET_FILE);
+        ctx->offset = filesize > 4000 ? filesize - 2000 : 0;
+        ctx->view_mode = VIEW_MODE_REALTIME;
+        ctx->input_mode = INPUT_MODE_COMMAND;
+        draw_footer(ctx, BACK_COLOR_GRAY);
     }
-    fclose(f);
-    fflush(stderr);
+}
+
+static void command_mode_handle_input(AppContext *ctx, int c)
+{
+    if (c == 'r' || c == 'R')
+    {
+        /* View mode to VIEW_MODE_STOP */
+        ERASE_SCREEN();
+        ctx->view_mode = VIEW_MODE_STOP;
+        ctx->input_mode = INPUT_MODE_STOP;
+        dump_file(TARGET_FILE);
+        fprintf(stderr, BACK_COLOR_BLUE "Press <R> to realtime log" COLOR_NONE);
+    }
+}
+
+static void filesel_mode_handle_input(AppContext *ctx, int c)
+{
+    if (!iscntrl(c))
+    {
+        ctx->cmdbuf[ctx->cmdbuf_offset] = c;
+        ctx->cmdbuf_offset++;
+        ctx->cmdbuf[ctx->cmdbuf_offset] = '\0';
+    }
+    else
+    {
+        if (c == '\n')
+        {
+            ctx->cmdbuf[0] = '\0';
+            ctx->cmdbuf_offset = 0;
+        }
+    }
+    draw_footer(ctx, BACK_COLOR_GRAY);
+}
+
+static void viewmode_realtime_handle_input(AppContext *ctx, int c)
+{
+    if (ctx->input_mode == INPUT_MODE_COMMAND)
+    {
+        command_mode_handle_input(ctx, c);
+    }
+    else if (ctx->input_mode == INPUT_MODE_FILESEL)
+    {
+        filesel_mode_handle_input(ctx, c);
+    }
 }
 
 static void handle_input(AppContext *ctx)
 {
     int c = getchar();
 
-    if (ctx->mode == MODE_COMMAND)
+    if (ctx->view_mode == VIEW_MODE_REALTIME)
     {
-    
-        if (c == 'r' || c == 'R')
+        if (c == '`')
         {
-            ERASE_SCREEN();
-            if (ctx->realtime == 1)
+            /* Toggle input mode */
+            if (ctx->input_mode == INPUT_MODE_COMMAND)
             {
-                ctx->realtime = 0;
-                dump_file(ctx);
-                fprintf(stderr, BACK_COLOR_BLUE "Press <R> to realtime log" COLOR_NONE);
+                ctx->input_mode = INPUT_MODE_FILESEL;
             }
             else
             {
-                size_t filesize = get_filesize(TARGET_FILE);
-                ctx->offset = filesize > 4000 ? filesize - 2000 : 0;
-                ctx->realtime = 1;
+                ctx->input_mode = INPUT_MODE_COMMAND;
             }
-            return;
-        }
-    }
-    else if (ctx->mode == MODE_FILESEL)
-    {
-        if (!iscntrl(c))
-        {
-            ctx->cmdbuf[ctx->cmdbuf_offset] = c;
-            ctx->cmdbuf_offset++;
-            ctx->cmdbuf[ctx->cmdbuf_offset] = '\0';
         }
         else
         {
-            if (c == '\n')
-            {
-                ctx->cmdbuf[0] = '\0';
-                ctx->cmdbuf_offset = 0;
-            }
+            viewmode_realtime_handle_input(ctx, c);
         }
     }
-    draw_footer(ctx, BACK_COLOR_GRAY);
+    else if (ctx->view_mode == VIEW_MODE_STOP)
+    {
+        viewmode_stop_handle_input(ctx, c);
+    }
 }
 
 void poll_input(AppContext *ctx)

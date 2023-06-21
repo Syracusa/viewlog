@@ -48,16 +48,13 @@ void draw_footer(AppContext *ctx, const char *color)
     for (int i = 0; i < ctx->win_col; i++)
         putc(' ', stderr);
     CURSOR_LEFT(MAX_COL);
-    if (ctx->mode == MODE_COMMAND)
+    if (ctx->input_mode == INPUT_MODE_COMMAND)
     {
-        fprintf(stderr, "<~> Change Mode <R> Realtime Toggle" COLOR_NONE);
+        fprintf(stderr, "<`> Change Mode <R> Realtime Toggle" COLOR_NONE);
     }
-    else if (ctx->mode == MODE_FILESEL)
+    else if (ctx->input_mode == INPUT_MODE_FILESEL)
     {
-        fprintf(stderr, "Open file : %s  (Press ~ to cmd mode)" COLOR_NONE, ctx->cmdbuf);
-    }
-    else
-    {
+        fprintf(stderr, "Open file : %s  (Press <`> to cmd mode)" COLOR_NONE, ctx->cmdbuf);
     }
 }
 
@@ -135,7 +132,7 @@ void mainloop(AppContext *ctx)
     {
         poll_input(ctx);
 
-        if (ctx->realtime)
+        if (ctx->view_mode == VIEW_MODE_REALTIME)
             update_screen(ctx);
     }
 }
@@ -146,7 +143,8 @@ AppContext *create_context()
     memset(ctx, 0x00, sizeof(AppContext));
 
     get_screen_size(&ctx->win_row, &ctx->win_col);
-    ctx->realtime = 1;
+    ctx->view_mode = VIEW_MODE_REALTIME;
+    ctx->input_mode = INPUT_MODE_COMMAND;
 
     update_screen(ctx);
     return ctx;

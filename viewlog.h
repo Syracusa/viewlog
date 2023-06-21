@@ -23,19 +23,24 @@
 #define MAX_COL 300
 #define MAX_ROW 100
 
-#define MODE_COMMAND    0
-#define MODE_FILESEL    1
-#define MODE_STOP       2
+#define INPUT_MODE_COMMAND      0
+#define INPUT_MODE_FILESEL      1
+#define INPUT_MODE_STOP         2
+
+#define VIEW_MODE_REALTIME      0
+#define VIEW_MODE_STOP          1
 
 typedef struct AppContext
 {
     int win_row;
     int win_col;
-    int realtime;
+    
     size_t offset;
     char cmdbuf[MAX_ROW];
     int cmdbuf_offset;
-    int mode;
+
+    int view_mode;
+    int input_mode;
 } AppContext;
 
 void draw_footer(AppContext *ctx, const char *color);
