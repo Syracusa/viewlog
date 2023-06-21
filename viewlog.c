@@ -1,32 +1,8 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
-#include <unistd.h>
 
-#include <termios.h>
-#include <string.h>
-#include <ctype.h>
+#include "viewlog.h"
+#include "ctrl.h"
 
-#include <sys/ioctl.h>
-#include <sys/stat.h>
-#include <sys/select.h>
-
-#include "ansi_ec.h"
-
-#define TARGET_FILE "/tmp/viewlog/test1.log"
-
-#define MAX_COL 300
-#define MAX_ROW 100
-
-typedef struct AppContext
-{
-    int win_row;
-    int win_col;
-    int realtime;
-    size_t offset;
-    char cmdbuf[MAX_ROW];
-    int cmdbuf_offset;
-} AppContext;
+struct termios term, orig;
 
 void get_cursor_pos(int *xp, int *yp)
 {
@@ -51,14 +27,6 @@ void get_screen_size(int *row, int *col)
     *col = w.ws_col;
 }
 
-size_t get_filesize(char *filename)
-{
-    FILE *f = fopen(filename, "r");
-    fseek(f, 0, SEEK_END);
-    size_t offset = ftell(f);
-    fclose(f);
-    return offset;
-}
 
 void draw_header(AppContext *ctx, const char *color)
 {
@@ -68,7 +36,7 @@ void draw_header(AppContext *ctx, const char *color)
         putc(' ', stderr);
 
     CURSOR_LEFT(MAX_COL);
-    fprintf(stderr, "%s (Size : %'luKB)" COLOR_NONE,
+    fprintf(stderr, "%s (Size : %luKB)" COLOR_NONE,
             TARGET_FILE, ctx->offset / 1024);
 }
 
@@ -80,7 +48,17 @@ void draw_footer(AppContext *ctx, const char *color)
     for (int i = 0; i < ctx->win_col; i++)
         putc(' ', stderr);
     CURSOR_LEFT(MAX_COL);
-    fprintf(stderr, "Command : %s" COLOR_NONE, ctx->cmdbuf);
+    if (ctx->mode == MODE_COMMAND)
+    {
+        fprintf(stderr, "<~> Change Mode <R> Realtime Toggle" COLOR_NONE);
+    }
+    else if (ctx->mode == MODE_FILESEL)
+    {
+        fprintf(stderr, "Open file : %s  (Press ~ to cmd mode)" COLOR_NONE, ctx->cmdbuf);
+    }
+    else
+    {
+    }
 }
 
 #define timespec_sub(after, before, result)                       \
@@ -146,42 +124,6 @@ void update_screen(AppContext *ctx)
     draw_footer(ctx, BACK_COLOR_GRAY);
 }
 
-void handle_input(AppContext *ctx)
-{
-    int c = getchar();
-    if (!iscntrl(c))
-    {
-        ctx->cmdbuf[ctx->cmdbuf_offset] = c;
-        ctx->cmdbuf_offset++;
-        ctx->cmdbuf[ctx->cmdbuf_offset] = '\0';
-    }
-    else
-    {
-        if (c == '\n')
-        {
-            ctx->cmdbuf[0] = '\0';
-            ctx->cmdbuf_offset = 0;
-        }
-    }
-    draw_footer(ctx, BACK_COLOR_GRAY);
-}
-
-void poll_input(AppContext *ctx)
-{
-    fd_set fds;
-    FD_ZERO(&fds);
-
-    FD_SET(STDIN_FILENO, &fds);
-    struct timeval tv = {0, 0};
-    tv.tv_sec = 0;
-    tv.tv_usec = 0;
-    select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv);
-    if (FD_ISSET(STDIN_FILENO, &fds))
-    {
-        handle_input(ctx);
-    }
-}
-
 void mainloop(AppContext *ctx)
 {
     size_t filesize = get_filesize(TARGET_FILE);
@@ -192,6 +134,7 @@ void mainloop(AppContext *ctx)
     while (1)
     {
         poll_input(ctx);
+
         if (ctx->realtime)
             update_screen(ctx);
     }
@@ -211,13 +154,13 @@ AppContext *create_context()
 
 void stdin_mode_immediate(void)
 {
-    struct termios term;
-
     if (tcgetattr(0, &term))
     {
         printf("tcgetattr failed\n");
         exit(-1);
     }
+
+    orig = term;
 
     term.c_lflag &= ~ICANON;
     term.c_lflag &= ~ECHO;
@@ -231,8 +174,19 @@ void stdin_mode_immediate(void)
     }
 }
 
+void app_exit(int sig)
+{
+    if (tcsetattr(0, TCSANOW, &orig))
+    {
+        printf("tcsetattr failed\n");
+        exit(-1);
+    }
+    exit(2);
+}
+
 int main()
 {
+    signal(SIGINT, app_exit);
     stdin_mode_immediate();
     AppContext *ctx = create_context();
 
