@@ -18,7 +18,7 @@
 #include "ansi_ec.h"
 #include "util.h"
 
-#define TARGET_FILE "/tmp/viewlog/test1.log"
+#define DEF_TARGET "/tmp/viewlog/test1.log"
 
 #define MAX_COL 300
 #define MAX_ROW 100
@@ -35,14 +35,19 @@ typedef struct AppContext
     int win_row;
     int win_col;
     
+    char target[300];
+
     size_t offset;
     char cmdbuf[MAX_ROW];
     int cmdbuf_offset;
+
+    char dir[MAX_ROW];
 
     int view_mode;
     int input_mode;
 } AppContext;
 
+void change_target(AppContext *ctx, const char *filename);
 void draw_footer(AppContext *ctx, const char *color);
 
 #endif

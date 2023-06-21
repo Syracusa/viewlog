@@ -2,14 +2,21 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-int main()
+int main(int argc, char *argv[])
 {
     system("mkdir /tmp/viewlog");
-    FILE *f = fopen("/tmp/viewlog/test1.log", "w+");
+    char filename[100];
+    sprintf(filename, "/tmp/viewlog/test1.log");
+
+    FILE *f;
+    if (argc > 1)
+        sprintf(filename, "/tmp/viewlog/%s", argv[1]);
+
+    f = fopen(filename, "w+");
     int i = 0;
     while (1)
     {
-        fprintf(f, "Test %d\n", i++);
+        fprintf(f, "%s : Test %d\n", filename, i++);
         fflush(f);
         usleep(500 * 1000);
     }

@@ -7,11 +7,10 @@ static void viewmode_stop_handle_input(AppContext *ctx, int c)
     {
         /* View mode to VIEW_MODE_REALTIME */
         ERASE_SCREEN();
-        size_t filesize = get_filesize(TARGET_FILE);
+        size_t filesize = get_filesize(ctx->target);
         ctx->offset = filesize > 4000 ? filesize - 2000 : 0;
         ctx->view_mode = VIEW_MODE_REALTIME;
         ctx->input_mode = INPUT_MODE_COMMAND;
-        draw_footer(ctx, BACK_COLOR_GRAY);
     }
 }
 
@@ -23,7 +22,7 @@ static void command_mode_handle_input(AppContext *ctx, int c)
         ERASE_SCREEN();
         ctx->view_mode = VIEW_MODE_STOP;
         ctx->input_mode = INPUT_MODE_STOP;
-        dump_file(TARGET_FILE);
+        dump_file(ctx->target);
         fprintf(stderr, BACK_COLOR_BLUE "Press <R> to realtime log" COLOR_NONE);
     }
 }
@@ -40,11 +39,24 @@ static void filesel_mode_handle_input(AppContext *ctx, int c)
     {
         if (c == '\n')
         {
+            if (ctx->cmdbuf_offset > 0)
+                change_target(ctx, ctx->cmdbuf);
             ctx->cmdbuf[0] = '\0';
             ctx->cmdbuf_offset = 0;
         }
+        else if (c == 127) /* BACKSPACE */
+        {
+            if (ctx->cmdbuf_offset > 0)
+            {
+                ctx->cmdbuf_offset--;
+                ctx->cmdbuf[ctx->cmdbuf_offset] = '\0';
+            }
+        }
+        else
+        {
+            // fprintf(stderr, "ctrl code : %d\n", c);
+        }
     }
-    draw_footer(ctx, BACK_COLOR_GRAY);
 }
 
 static void viewmode_realtime_handle_input(AppContext *ctx, int c)
@@ -86,6 +98,7 @@ static void handle_input(AppContext *ctx)
     {
         viewmode_stop_handle_input(ctx, c);
     }
+    draw_footer(ctx, BACK_COLOR_GRAY);
 }
 
 void poll_input(AppContext *ctx)

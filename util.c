@@ -8,28 +8,34 @@
 
 size_t get_filesize(char *filename)
 {
+    size_t offset = 0;
     FILE *f = fopen(filename, "r");
-    fseek(f, 0, SEEK_END);
-    size_t offset = ftell(f);
-    fclose(f);
+    if (f)
+    {
+        fseek(f, 0, SEEK_END);
+        offset = ftell(f);
+        fclose(f);
+    }
     return offset;
 }
 
-
-void dump_file(char* target_file)
+void dump_file(char *target_file)
 {
     size_t offset = 0;
     size_t filesize = get_filesize(target_file);
     FILE *f = fopen(target_file, "r");
-    char buf[2001];
-
-    while (offset < filesize)
+    if (f)
     {
-        size_t read = fread(buf, 1, 2000, f);
-        buf[read] = '\0';
-        fprintf(stderr, "%s", buf);
-        offset += read;
+        char buf[2001];
+
+        while (offset < filesize)
+        {
+            size_t read = fread(buf, 1, 2000, f);
+            buf[read] = '\0';
+            fprintf(stderr, "%s", buf);
+            offset += read;
+        }
+        fclose(f);
+        fflush(stderr);
     }
-    fclose(f);
-    fflush(stderr);
 }

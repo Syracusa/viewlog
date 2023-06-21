@@ -4,6 +4,14 @@
 
 struct termios term, orig;
 
+void change_target(AppContext *ctx, const char *filename)
+{
+    ERASE_SCREEN();
+    sprintf(ctx->target, "%s", filename);
+    size_t filesize = get_filesize(ctx->target);
+    ctx->offset = filesize > 4000 ? filesize - 2000 : 0;
+}
+
 void get_cursor_pos(int *xp, int *yp)
 {
     fprintf(stderr, "\033[6n");
@@ -27,7 +35,6 @@ void get_screen_size(int *row, int *col)
     *col = w.ws_col;
 }
 
-
 void draw_header(AppContext *ctx, const char *color)
 {
     CURSOR_HOME();
@@ -37,11 +44,14 @@ void draw_header(AppContext *ctx, const char *color)
 
     CURSOR_LEFT(MAX_COL);
     fprintf(stderr, "%s (Size : %luKB)" COLOR_NONE,
-            TARGET_FILE, ctx->offset / 1024);
+            ctx->target, ctx->offset / 1024);
 }
 
 void draw_footer(AppContext *ctx, const char *color)
 {
+    if (ctx->input_mode == INPUT_MODE_STOP)
+        return;
+
     CURSOR_DOWN(MAX_ROW);
     CURSOR_LEFT(MAX_COL);
     fprintf(stderr, "%s", color);
@@ -50,7 +60,7 @@ void draw_footer(AppContext *ctx, const char *color)
     CURSOR_LEFT(MAX_COL);
     if (ctx->input_mode == INPUT_MODE_COMMAND)
     {
-        fprintf(stderr, "<`> Change Mode <R> Realtime Toggle" COLOR_NONE);
+        fprintf(stderr, "<`> File Select <R> Realtime Toggle" COLOR_NONE);
     }
     else if (ctx->input_mode == INPUT_MODE_FILESEL)
     {
@@ -90,23 +100,18 @@ int poll_interval_check()
     return 0;
 }
 
-void update_screen(AppContext *ctx)
+void update_log(AppContext *ctx)
 {
-    if (!poll_interval_check())
-        return;
-
-    size_t filesize = get_filesize(TARGET_FILE);
-    if (filesize <= ctx->offset)
-    {
-        ctx->offset = filesize;
-        return;
-    }
     char buf[2001];
-    FILE *f = fopen(TARGET_FILE, "r");
-    fseek(f, ctx->offset, SEEK_SET);
-    size_t read = fread(buf, 1, 2000, f);
-    ctx->offset += read;
-    fclose(f);
+    FILE *f = fopen(ctx->target, "r");
+    size_t read = 0;
+    if (f)
+    {
+        fseek(f, ctx->offset, SEEK_SET);
+        read = fread(buf, 1, 2000, f);
+        ctx->offset += read;
+        fclose(f);
+    }
 
     if (read > 0)
     {
@@ -117,13 +122,32 @@ void update_screen(AppContext *ctx)
         buf[read] = '\0';
         fprintf(stderr, "%s", buf);
     }
-    draw_header(ctx, BACK_COLOR_BLUE);
-    draw_footer(ctx, BACK_COLOR_GRAY);
+}
+
+void poll_log(AppContext *ctx)
+{
+    size_t filesize = get_filesize(ctx->target);
+    if (filesize <= ctx->offset)
+    {
+        ctx->offset = filesize;
+        return;
+    }
+    update_log(ctx);
+}
+
+void update_screen(AppContext *ctx)
+{
+    if (poll_interval_check()){
+        poll_log(ctx);    
+        draw_header(ctx, BACK_COLOR_BLUE);
+        draw_footer(ctx, BACK_COLOR_GRAY);
+    }
+
 }
 
 void mainloop(AppContext *ctx)
 {
-    size_t filesize = get_filesize(TARGET_FILE);
+    size_t filesize = get_filesize(ctx->target);
     ctx->offset = filesize > 4000 ? filesize - 2000 : 0;
 
     ERASE_SCREEN();
@@ -141,6 +165,8 @@ AppContext *create_context()
 {
     AppContext *ctx = (AppContext *)malloc(sizeof(AppContext));
     memset(ctx, 0x00, sizeof(AppContext));
+
+    sprintf(ctx->target, DEF_TARGET);
 
     get_screen_size(&ctx->win_row, &ctx->win_col);
     ctx->view_mode = VIEW_MODE_REALTIME;
