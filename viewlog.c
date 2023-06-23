@@ -245,6 +245,6 @@ int main()
     AppContext *ctx = create_context();
 
     mainloop(ctx);
-
+    app_exit(SIGINT);
     return 0;
 }
