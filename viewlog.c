@@ -121,7 +121,7 @@ int poll_interval_check()
     struct timespec diff;
     timespec_sub(&currtime, &oldtime, &diff);
 
-    if (diff.tv_nsec > 50 * 1000 * 1000)
+    if (diff.tv_nsec > 10 * 1000 * 1000)
     {
         oldtime = currtime;
         return 1;
@@ -187,6 +187,8 @@ void mainloop(AppContext *ctx)
 
         if (ctx->view_mode == VIEW_MODE_REALTIME)
             update_screen(ctx);
+
+        usleep(5000);
     }
 }
 
