@@ -1,7 +1,7 @@
 #ifndef ANSI_EC_H
 #define ANSI_EC_H
 /**
- * ANSI Escape Charactors
+ * ANSI Escape Characters
  */
 
 #define EPRT(...) fprintf(stderr, __VA_ARGS__);
@@ -23,19 +23,5 @@
 #define BACK_COLOR_CYAN                 "\e[0;46m"
 #define BACK_COLOR_GREEN                "\e[0;42m"
 #define BACK_COLOR_GRAY                 "\e[0;47m"
-
-// #define CURSOR_HOME "\x1b[H"
-
-// #define CURSOR_TO(row, col) "\x1b[" #row ";" #col "f"
-
-// #define CURSOR_UP "\x1b[1A"
-// #define CURSOR_DOWN "\x1b[1B"
-// #define CURSOR_RIGHT "\x1b[1C"
-// #define CURSOR_LEFT "\x1b[1D"
-
-// #define CURSOR_UP_N(n) "\x1b[" #n "A"
-// #define CURSOR_DOWN_N(n) "\x1b[" #n "B"
-// #define CURSOR_RIGHT_N(n) "\x1b[" #n "C"
-// #define CURSOR_LEFT_N(n) "\x1b[" #n "D"
 
 #endif
