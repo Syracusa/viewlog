@@ -8,6 +8,7 @@ add_compile_options(-fsanitize=address -Wno-address-of-packed-member)
 add_link_options(-fsanitize=address)
 
 add_executable(viewlog 
+                main.c
                 viewlog.c
                 ctrl.c
                 util.c)

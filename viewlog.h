@@ -45,9 +45,21 @@ typedef struct AppContext
 
     int view_mode;
     int input_mode;
+
+    struct termios term;
+    struct termios orig;
 } AppContext;
 
+AppContext *get_context();
+
+void stdin_mode_immediate(AppContext *ctx);
+
+void viewlog_mainloop(AppContext *ctx);
+
 void change_target(AppContext *ctx, const char *filename);
+
 void draw_footer(AppContext *ctx, const char *color);
+
+void app_exit(int sig);
 
 #endif
