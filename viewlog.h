@@ -37,7 +37,7 @@
 
 typedef struct AppContext
 {
-    int win_row;
+    int win_row; 
     int win_col;
     
     char target[MAX_CMDBUF];
@@ -48,7 +48,7 @@ typedef struct AppContext
 
     char dir[MAX_CMDBUF];
 
-    int view_mode;
+    int view_mode; /** VIEW_MODE_REALTIME or VIEW_MODE_STOP */
     int input_mode;
 
     struct termios term;

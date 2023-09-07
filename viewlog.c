@@ -2,7 +2,8 @@
 #include "viewlog.h"
 #include "ctrl.h"
 
-AppContext *g_ctx = NULL; /* Global singleton context */
+/** Global singleton context */
+AppContext *g_ctx = NULL; 
 
 /**
  * @brief Update directory path from filename
