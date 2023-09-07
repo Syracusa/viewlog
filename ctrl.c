@@ -8,7 +8,7 @@ static void viewmode_stop_handle_input(AppContext *ctx, int c)
         /* View mode to VIEW_MODE_REALTIME */
         ERASE_SCREEN();
         size_t filesize = get_filesize(ctx->target);
-        ctx->offset = filesize > 4000 ? filesize - 2000 : 0;
+        ctx->offset = filesize > 2000 ? filesize - 2000 : 0;
         ctx->view_mode = VIEW_MODE_REALTIME;
         ctx->input_mode = INPUT_MODE_COMMAND;
     }
@@ -29,13 +29,13 @@ static void command_mode_handle_input(AppContext *ctx, int c)
 
 static void filesel_mode_handle_input(AppContext *ctx, int c)
 {
-    if (!iscntrl(c))
+    if (!iscntrl(c)) /* Normal character */
     {
         ctx->cmdbuf[ctx->cmdbuf_offset] = c;
         ctx->cmdbuf_offset++;
         ctx->cmdbuf[ctx->cmdbuf_offset] = '\0';
     }
-    else
+    else /* Control character */
     {
         if (c == '\n')
         {
@@ -54,7 +54,10 @@ static void filesel_mode_handle_input(AppContext *ctx, int c)
         }
         else
         {
-            // fprintf(stderr, "ctrl code : %d\n", c);
+#if 0
+            /* Debug */
+            fprintf(stderr, "ctrl code : %d\n", c);
+#endif
         }
     }
 }
@@ -68,6 +71,10 @@ static void viewmode_realtime_handle_input(AppContext *ctx, int c)
     else if (ctx->input_mode == INPUT_MODE_FILESEL)
     {
         filesel_mode_handle_input(ctx, c);
+    }
+    else 
+    {
+        fprintf(stderr, "Invalid input mode\n");
     }
 }
 
@@ -97,6 +104,10 @@ static void handle_input(AppContext *ctx)
     else if (ctx->view_mode == VIEW_MODE_STOP)
     {
         viewmode_stop_handle_input(ctx, c);
+    }
+    else
+    {
+        fprintf(stderr, "Invalid view mode\n");
     }
     draw_footer(ctx, BACK_COLOR_GRAY);
 }

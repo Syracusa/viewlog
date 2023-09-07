@@ -1,3 +1,8 @@
+/**
+ * @file viewlog.h
+ * @brief Application context and core functions
+ */
+
 #ifndef VIEWLOG_H
 #define VIEWLOG_H
 
@@ -20,8 +25,8 @@
 
 #define DEF_TARGET "/tmp/viewlog/test1.log"
 
-#define MAX_COL 300
-#define MAX_ROW 100
+#define MAX_ROW 1000
+#define MAX_CMDBUF 300
 
 #define INPUT_MODE_COMMAND      0
 #define INPUT_MODE_FILESEL      1
@@ -35,13 +40,13 @@ typedef struct AppContext
     int win_row;
     int win_col;
     
-    char target[300];
+    char target[MAX_CMDBUF];
 
     size_t offset;
     char cmdbuf[MAX_ROW];
     int cmdbuf_offset;
 
-    char dir[MAX_ROW];
+    char dir[MAX_CMDBUF];
 
     int view_mode;
     int input_mode;
@@ -58,12 +63,34 @@ typedef struct AppContext
  */
 AppContext *get_context();
 
+/**
+ * @brief Main loop of viewlog
+ * This function will not end.
+ * @param ctx Application context
+ */
 void viewlog_mainloop(AppContext *ctx);
 
+/**
+ * @brief Change target log file
+ * 
+ * @param ctx Application context
+ * @param filename New target log file
+ */
 void change_target(AppContext *ctx, const char *filename);
 
+/**
+ * @brief Draw footer
+ * 
+ * @param ctx Application context
+ * @param color Background color
+ */
 void draw_footer(AppContext *ctx, const char *color);
 
+/**
+ * @brief Signal Handler - Exit application. 
+ * 
+ * @param sig Signal number
+ */
 void app_exit(int sig);
 
 #endif

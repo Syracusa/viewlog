@@ -5,10 +5,10 @@
 AppContext *g_ctx = NULL; /* Global singleton context */
 
 /**
- * @brief
+ * @brief Update directory path from filename
  *
- * @param ctx
- * @param filename
+ * @param ctx Application context
+ * @param filename Selected filename
  */
 static void update_dir(AppContext *ctx, const char *filename)
 {
@@ -24,6 +24,12 @@ static void update_dir(AppContext *ctx, const char *filename)
     }
 }
 
+/**
+ * @brief Get the screen size
+ * 
+ * @param row Pointer to save row size
+ * @param col Pointer to save column size
+ */
 static void get_screen_size(int *row, int *col)
 {
     struct winsize w;
@@ -32,6 +38,12 @@ static void get_screen_size(int *row, int *col)
     *col = w.ws_col;
 }
 
+/**
+ * @brief Draw header
+ * 
+ * @param ctx Application context
+ * @param color ANSI color code
+ */
 static void draw_header(AppContext *ctx, const char *color)
 {
     CURSOR_HOME();
@@ -39,7 +51,7 @@ static void draw_header(AppContext *ctx, const char *color)
     for (int i = 0; i < ctx->win_col; i++)
         putc(' ', stderr);
 
-    CURSOR_LEFT(MAX_COL);
+    CURSOR_LEFT(ctx->win_col);
     fprintf(stderr, "%s (Size : %luKB)" COLOR_NONE,
             ctx->target, ctx->offset / 1024);
 }
@@ -56,7 +68,7 @@ static void draw_header(AppContext *ctx, const char *color)
         }                                                         \
     } while (0)
 
-static int poll_interval_check()
+static int poll_interval_check(unsigned long poll_interval_ms)
 {
     static struct timespec oldtime = {0, 0};
     if (oldtime.tv_sec == 0)
@@ -68,7 +80,7 @@ static int poll_interval_check()
     struct timespec diff;
     timespec_sub(&currtime, &oldtime, &diff);
 
-    if (diff.tv_nsec > 10 * 1000 * 1000)
+    if (diff.tv_nsec > poll_interval_ms * 1000 * 1000)
     {
         oldtime = currtime;
         return 1;
@@ -92,7 +104,7 @@ static void update_log(AppContext *ctx)
     if (read > 0)
     {
         ERASE_LINE();
-        CURSOR_DOWN(MAX_ROW);
+        CURSOR_DOWN(ctx->win_row);
         CURSOR_UP(1);
         putc('\n', stderr);
         buf[read] = '\0';
@@ -113,7 +125,8 @@ static void poll_log(AppContext *ctx)
 
 static void update_screen(AppContext *ctx)
 {
-    if (poll_interval_check())
+    /* Poll log every 10ms */
+    if (poll_interval_check(10))
     {
         poll_log(ctx);
         draw_header(ctx, BACK_COLOR_BLUE);
@@ -140,7 +153,7 @@ void change_target(AppContext *ctx, const char *filename)
         sprintf(ctx->target, "%s%s", ctx->dir, filename);
     }
     size_t filesize = get_filesize(ctx->target);
-    ctx->offset = filesize > 4000 ? filesize - 2000 : 0;
+    ctx->offset = filesize > 2000 ? filesize - 2000 : 0;
 }
 
 void draw_footer(AppContext *ctx, const char *color)
@@ -148,12 +161,12 @@ void draw_footer(AppContext *ctx, const char *color)
     if (ctx->input_mode == INPUT_MODE_STOP)
         return;
 
-    CURSOR_DOWN(MAX_ROW);
-    CURSOR_LEFT(MAX_COL);
+    CURSOR_DOWN(ctx->win_row);
+    CURSOR_LEFT(ctx->win_col);
     fprintf(stderr, "%s", color);
     for (int i = 0; i < ctx->win_col; i++)
         putc(' ', stderr);
-    CURSOR_LEFT(MAX_COL);
+    CURSOR_LEFT(ctx->win_col);
     if (ctx->input_mode == INPUT_MODE_COMMAND)
     {
         fprintf(stderr, "<`> File Select <R> Realtime Toggle" COLOR_NONE);
@@ -223,7 +236,7 @@ void viewlog_mainloop(AppContext *ctx)
 {
     /* Set read offset to last 2000 bytes */
     size_t filesize = get_filesize(ctx->target);
-    ctx->offset = filesize > 4000 ? filesize - 2000 : 0;
+    ctx->offset = filesize > 2000 ? filesize - 2000 : 0;
 
     unsigned long tick = 0;
 
@@ -241,7 +254,7 @@ void viewlog_mainloop(AppContext *ctx)
         if (tick % 100 == 0)
             check_screen_size_change(ctx);
         
-        /* Update interval = 5ms */
+        /* Loop interval = 5ms */
         usleep(5000);
     }
 }
