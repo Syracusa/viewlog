@@ -2,8 +2,14 @@
 #include "viewlog.h"
 #include "ctrl.h"
 
-AppContext *g_ctx = NULL;
+AppContext *g_ctx = NULL; /* Global singleton context */
 
+/**
+ * @brief
+ *
+ * @param ctx
+ * @param filename
+ */
 static void update_dir(AppContext *ctx, const char *filename)
 {
     int offset = strlen(filename);
@@ -159,7 +165,7 @@ void draw_footer(AppContext *ctx, const char *color)
     }
 }
 
-void stdin_mode_immediate(AppContext *ctx)
+static void stdin_mode_immediate(AppContext *ctx)
 {
     if (tcgetattr(0, &ctx->term))
     {
@@ -181,6 +187,19 @@ void stdin_mode_immediate(AppContext *ctx)
     }
 }
 
+static void check_screen_size_change(AppContext *ctx)
+{
+    int row, col;
+    get_screen_size(&row, &col);
+    if (row != ctx->win_row || col != ctx->win_col)
+    {
+        ERASE_SCREEN();
+        ctx->win_row = row;
+        ctx->win_col = col;
+        update_screen(ctx);
+    }
+}
+
 AppContext *get_context()
 {
     if (g_ctx == NULL)
@@ -194,6 +213,7 @@ AppContext *get_context()
         ctx->input_mode = INPUT_MODE_COMMAND;
 
         update_screen(ctx);
+        stdin_mode_immediate(ctx);
         g_ctx = ctx;
     }
     return g_ctx;
@@ -201,18 +221,27 @@ AppContext *get_context()
 
 void viewlog_mainloop(AppContext *ctx)
 {
+    /* Set read offset to last 2000 bytes */
     size_t filesize = get_filesize(ctx->target);
     ctx->offset = filesize > 4000 ? filesize - 2000 : 0;
+
+    unsigned long tick = 0;
 
     ERASE_SCREEN();
 
     while (1)
     {
+        tick++;
         poll_input(ctx);
 
         if (ctx->view_mode == VIEW_MODE_REALTIME)
             update_screen(ctx);
 
+        /* Update screen size every 100 ticks */
+        if (tick % 100 == 0)
+            check_screen_size_change(ctx);
+        
+        /* Update interval = 5ms */
         usleep(5000);
     }
 }

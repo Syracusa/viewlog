@@ -4,7 +4,6 @@ int main()
 {
     signal(SIGINT, app_exit);
     AppContext *ctx = get_context();
-    stdin_mode_immediate(ctx);
     viewlog_mainloop(ctx);
 
     /* Will not reach here */

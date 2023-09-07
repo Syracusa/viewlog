@@ -50,9 +50,13 @@ typedef struct AppContext
     struct termios orig;
 } AppContext;
 
+/**
+ * @brief Get the global singleton app context
+ * If the context is not initialized, it will be initialized.
+ * 
+ * @return AppContext* Application context
+ */
 AppContext *get_context();
-
-void stdin_mode_immediate(AppContext *ctx);
 
 void viewlog_mainloop(AppContext *ctx);
 
